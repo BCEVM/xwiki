@@ -1,5 +1,5 @@
 # xwiki
-template nuclei untuk menemukan kerentanan RCE dan LFI pada Xwiki
+
 Template Nuclei ini dirancang untuk melakukan validasi keamanan secara aman (non-destruktif) terhadap endpoint /xwiki/bin/get/Main/SolrSearch pada aplikasi XWiki.
 
 Template ini tidak mengandung payload RCE, command injection, atau eksploitasi aktif. Fokus utama:
