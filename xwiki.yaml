@@ -1,0 +1,167 @@
+id: xwiki-solrsearch-advanced-validation-safe
+
+info:
+  name: XWiki SolrSearch Advanced Reflection & Info Leakage Detection
+  author: bcevm 
+  severity: medium
+  description: >
+    Advanced safe validation template for XWiki SolrSearch endpoint.
+    Includes:
+      - Reflection detection
+      - Escape validation
+      - Baseline comparison
+      - Version fingerprinting
+      - Context detection
+      - Sensitive keyword / info leakage detection (passive only)
+
+    No command execution, no RCE, no destructive payloads.
+
+  reference:
+    - https://www.xwiki.org/
+
+  metadata:
+    verified: true
+    max-request: 4
+
+  tags: xwiki,reflection,xss,xml,infoleak,misconfig,safe
+
+http:
+
+  #
+  # 1. BASELINE
+  #
+  - method: GET
+    path:
+      - "{{BaseURL}}/xwiki/bin/get/Main/SolrSearch?media=rss&text=baselinecheck123"
+
+    headers:
+      User-Agent: Mozilla/5.0 nuclei-advanced-check
+      Accept: "*/*"
+
+    redirects: true
+
+    extractors:
+      - type: regex
+        name: version
+        part: body
+        regex:
+          - "(?i)xwiki[^<]{0,80}"
+          - "(?i)version[^<]{0,80}"
+
+      - type: kval
+        name: content-type
+        kval:
+          - content_type
+
+  #
+  # 2. UNIQUE MARKER REFLECTION
+  #
+  - method: GET
+    path:
+      - "{{BaseURL}}/xwiki/bin/get/Main/SolrSearch?media=rss&text=%7D%7D%7D%7B%7B13371337%7D%7D"
+
+    headers:
+      User-Agent: Mozilla/5.0 nuclei-advanced-check
+
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "13371337"
+
+    extractors:
+      - type: regex
+        name: reflection-context
+        part: body
+        regex:
+          - "<title>.*13371337.*</title>"
+          - "<description>.*13371337.*</description>"
+
+  #
+  # 3. ESCAPE VALIDATION
+  #
+  - method: GET
+    path:
+      - "{{BaseURL}}/xwiki/bin/get/Main/SolrSearch?media=rss&text=%22%3E%3CtestXSS%3E"
+
+    headers:
+      User-Agent: Mozilla/5.0 nuclei-advanced-check
+
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - "&lt;testXSS&gt;"
+          - "&quot;&gt;&lt;testXSS&gt;"
+
+  #
+  # 4. RAW REFLECTION CHECK
+  #
+  - method: GET
+    path:
+      - "{{BaseURL}}/xwiki/bin/get/Main/SolrSearch?media=rss&text=%3CtestXSS%3E"
+
+    headers:
+      User-Agent: Mozilla/5.0 nuclei-advanced-check
+
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "<testXSS>"
+
+  #
+  # 5. INFO LEAKAGE / SYSTEM KEYWORD DETECTION (PASSIVE)
+  #
+  - method: GET
+    path:
+      - "{{BaseURL}}/xwiki/bin/get/Main/SolrSearch?media=rss&text=linux"
+
+    headers:
+      User-Agent: Mozilla/5.0 nuclei-advanced-check
+
+    matchers-condition: or
+
+    matchers:
+      # OS indicators
+      - type: word
+        part: body
+        words:
+          - "Linux"
+          - "GNU"
+          - "Ubuntu"
+          - "Debian"
+          - "CentOS"
+
+      # Sensitive file indicators
+      - type: word
+        part: body
+        words:
+          - "/etc/passwd"
+          - "root:x:0:0:"
+          - "/home/"
+          - "/var/lib/xwiki"
+
+      # Network / service indicators
+      - type: word
+        part: body
+        words:
+          - "tcp"
+          - "udp"
+          - "LISTEN"
+          - "0.0.0.0"
+
+      # Potential command output patterns (passive only)
+      - type: regex
+        part: body
+        regex:
+          - "(?i)uid=[0-9]+"
+          - "(?i)gid=[0-9]+"
+          - "(?i)groups="
+
+    extractors:
+      - type: regex
+        name: possible-leak
+        part: body
+        regex:
+          - ".{0,120}(Linux|root:x:0:0:|uid=|/home/).{0,120}"
