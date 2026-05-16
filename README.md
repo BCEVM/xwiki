@@ -58,12 +58,12 @@ Template ini akan mendeteksi potential vulnerability / misconfiguration jika dit
 Simpan file sebagai:
 bash
 
-xwiki-solrsearch-advanced-validation-safe.yaml
+xwiki.yaml
 
 2. Jalankan dengan Nuclei
 bash
 
-nuclei -t xwiki-solrsearch-advanced-validation-safe.yaml -u https://target.com
+nuclei -t xwiki.yaml -u https://target.com
 
 3. Contoh output
 yaml
